@@ -1,0 +1,63 @@
+:root {
+  --bg: #FEF9F2;
+  --surface: #FFFFFF;
+  --text: #1E1B18;
+  --text-secondary: #6B6560;
+  --text-tertiary: #9B9490;
+  --border: #EBE5DB;
+  --border-light: #F2EDE5;
+  --accent: #D4883C;
+  --accent-soft: #FDF0E0;
+  --success: #5D9B6E;
+  --warn: #C4703E;
+  --font-serif: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1E1B18;
+    --surface: #282420;
+    --text: #F0EBE4;
+    --text-secondary: #A09A92;
+    --text-tertiary: #6B6560;
+    --border: #3A3530;
+    --border-light: #2D2924;
+    --accent: #E8A850;
+    --accent-soft: #2D2518;
+    --success: #7BAF8C;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ── Animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes badgeIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.animate-fade-in { animation: fadeIn 0.35s ease; }
+.animate-badge-in { animation: badgeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
