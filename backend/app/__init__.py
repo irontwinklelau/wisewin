@@ -14,7 +14,7 @@ app = FastAPI(title="内功 API", version="0.1.0")
 # CORS — 允许前端开发服务器访问
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:8080"],
+    allow_origins=["http://localhost:5173", "http://localhost:8090"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

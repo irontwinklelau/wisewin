@@ -175,3 +175,105 @@ def _user_info(user: UserState) -> dict:
         "streak_days": user.streak_days,
         "total_checkins": user.total_checkins,
     }
+
+
+# ── 段位升级 ──
+
+LEVEL_MODULES = {
+    0: "不被PUA",   # LV.0 → LV.1: 完成"不被PUA"的受害者叙事模块
+    1: "不被PUA",   # LV.1 → LV.2: 框架化表达
+    2: "不被PUA",   # LV.2 → LV.3: 自我估值校准
+    3: "读人痛点",  # LV.3 → LV.4: 进阶
+}
+
+LEVEL_TESTS = {
+    0: {
+        "question": "请用一句话总结「受害者叙事」和「策略选择者叙事」的核心区别，并举例说明你在什么场景下容易陷入受害者叙事。",
+        "module": "不被PUA",
+        "min_chars": 30,
+    },
+    1: {
+        "question": "请用「框架化表达」的方法，重新组织你最近一次被问到'你的优势是什么'时的回答。",
+        "module": "不被PUA",
+        "min_chars": 30,
+    },
+    2: {
+        "question": "请评估你当前的市场价值：你上一次面试/谈薪资时，你的要价是基于什么依据？如果要重新定价，你会怎么定？",
+        "module": "不被PUA",
+        "min_chars": 30,
+    },
+}
+
+
+@router.get("/level-up-status")
+def get_level_up_status(db: Session = Depends(get_db)):
+    """检查是否可以参加升级测验"""
+    user = db.query(UserState).filter(UserState.id == 1).first()
+    if not user:
+        return {"can_test": False, "reason": "用户未初始化"}
+
+    current_module = LEVEL_MODULES.get(user.level)
+    if not current_module:
+        return {"can_test": True, "reason": "已达最高段位"}
+
+    # 统计当前模块的已完成课程数
+    completed = db.query(TrainingLog).filter(
+        TrainingLog.module == current_module,
+        TrainingLog.completed == True,
+    ).count()
+
+    # 统计当前模块的总课程数
+    total_lessons = db.query(Lesson).filter(
+        Lesson.module == current_module,
+    ).count()
+
+    if total_lessons == 0:
+        return {"can_test": False, "reason": "当前模块暂无课程"}
+
+    if completed < total_lessons:
+        return {"can_test": False, "reason": f"还需完成 {total_lessons - completed} 节课"}
+
+    test = LEVEL_TESTS.get(user.level)
+    if not test:
+        return {"can_test": False, "reason": "测验未配置"}
+
+    return {
+        "can_test": True,
+        "current_level": user.level,
+        "next_level": user.level + 1,
+        "test": test,
+    }
+
+
+class LevelTestSubmit(BaseModel):
+    answer: str
+
+
+@router.post("/level-up-test")
+def submit_level_test(data: LevelTestSubmit, db: Session = Depends(get_db)):
+    """提交升级测验答案"""
+    user = db.query(UserState).filter(UserState.id == 1).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户未初始化")
+
+    test = LEVEL_TESTS.get(user.level)
+    if not test:
+        raise HTTPException(status_code=400, detail="已达最高段位或无测验配置")
+
+    if len(data.answer) < test["min_chars"]:
+        return {"passed": False, "reason": f"回答至少需要 {test['min_chars']} 字，请再想想"}
+
+    # 通过！升级
+    user.level += 1
+    db.commit()
+
+    return {
+        "passed": True,
+        "new_level": user.level,
+        "level_label": _level_label(user.level),
+    }
+
+
+def _level_label(level: int) -> str:
+    labels = ["零", "壹", "贰", "叁", "肆"]
+    return labels[level] if level < len(labels) else str(level)
