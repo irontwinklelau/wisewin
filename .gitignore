@@ -8,6 +8,10 @@ __pycache__/
 frontend/dist/
 backend/dist/
 
+# Wrangler local state
+.wrangler/
+cloudflare/.wrangler/
+
 # Environment
 .env
 .env.local

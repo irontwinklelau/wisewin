@@ -1,0 +1,12 @@
+name = "neigong-api"
+main = "src/worker.js"
+compatibility_date = "2025-07-28"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "neigong-db"
+database_id = "3e825fd3-f1fb-4ce3-be0b-266a9d3e465b"
+
+[vars]
+CORS_ORIGIN = "https://irontwinklelau.github.io"
+# DEEPSEEK_API_KEY 通过 wrangler secret put 设置，不写在这里
