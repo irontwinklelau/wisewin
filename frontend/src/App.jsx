@@ -17,6 +17,9 @@ function App(){
   const[swp,sswp]=useState(null)
   const[hy,shy]=useState([])
   const[hd,shd]=useState(null)
+  const[gv,sgv]=useState(false)
+  const[gd,sgd]=useState([])
+  const[gq,sgq]=useState(null)
 
   useEffect(()=>{fetch(`${API}/training/user`).then(r=>r.json()).then(d=>su(d)).catch(()=>{})},[])
   const go=()=>{sv('dash');sl(null);sa('');se(null);swv(false);srv(null);ser(null);sswp(null);shd(null);fetch(`${API}/training/user`).then(r=>r.json()).then(d=>su(d)).catch(()=>{})}
@@ -25,12 +28,15 @@ function App(){
   const chkLv=async()=>{try{const r=await fetch(`${API}/training/level-up-status`);const d=await r.json();if(d.can_test)slt(d)}catch{}}
   const lw=async()=>{try{const r=await fetch(`${API}/training/weapons`);const d=await r.json();sw(d.weapons||[]);swv(true)}catch{swv(true)}}
   const lh=async()=>{try{const r=await fetch(`${API}/training/history`);const d=await r.json();shy(d.logs||[]);sv('hy')}catch{se('加载失败')}}
+  const openGrid=async()=>{try{const[r1,r2]=await Promise.all([fetch(`${API}/training/checkin-grid`),fetch(`${API}/training/daily-quote`)]);sgd((await r1.json()).dates||[]);sgq(await r2.json());sgv(true)}catch{}}
+  const goGrid=()=>{sgd([]);sgq(null);sgv(false)}
   const lc=async(id)=>{sld(true);shd(null);sv('hd');try{const r=await fetch(`${API}/training/history/compare`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({log_id:id})});const d=await r.json();shd(d)}catch{se('分析失败')};sld(false)}
   const doLt=async()=>{if(a.length<10){se('写得太少了');return};sld(true);try{const r=await fetch(`${API}/training/level-up-test`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({answer:a})});const d=await r.json();if(d.passed){su(p=>({...p,level:d.new_level}));ser(d);sv('lup');slt(null)}else{ser(d);se(null)}}catch{se('提交失败')};sld(false)}
   useEffect(()=>{chkLv()},[u.total_checkins])
 
   return(<>
-    {v==='dash'&&<Dash u={u} err={e} ld={ld} os={start} lt={lt} olt={()=>sv('lt')} ow={lw} oh={lh}/>}
+    {v==='dash'&&<Dash u={u} err={e} ld={ld} os={start} lt={lt} olt={()=>sv('lt')} ow={lw} oh={lh} og={openGrid}/>}
+    {gv&&<Grid gd={gd} gq={gq} oc={goGrid}/>}
     {wv&&!swp&&<Wpns wp={wp} oh={go} os={sswp}/>}
     {wv&&swp&&<Wpd w={swp} ob={()=>sswp(null)} oh={go}/>}
     {v==='hy'&&<Hy lg={hy} os={lc} oh={go}/>}
@@ -44,7 +50,7 @@ function App(){
   </>)
 }
 
-function Dash({u,err,ld,os,lt,olt,ow,oh}){
+function Dash({u,err,ld,os,lt,olt,ow,oh,og}){
   return <div className="animate-fade-in" style={co}>
     <div style={tb}><span style={s20}>内功</span><span style={s13}>{new Date().toLocaleDateString('zh-CN',{weekday:'long',month:'long',day:'numeric'})}</span></div>
     <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:40,padding:'48px 0 32px'}}>
@@ -67,6 +73,11 @@ function Dash({u,err,ld,os,lt,olt,ow,oh}){
     <div onClick={oh} style={mi}>
       <span style={{fontSize:18}}>📋</span>
       <div><div style={{fontSize:15,fontWeight:500}}>训练记录</div><div style={{fontSize:13,color:'var(--text-tertiary)'}}>回顾答题与差距分析</div></div>
+      <span style={{marginLeft:'auto',color:'var(--text-tertiary)'}}>→</span>
+    </div>
+    <div onClick={og} style={mi}>
+      <span style={{fontSize:18}}>📅</span>
+      <div><div style={{fontSize:15,fontWeight:500}}>打卡日历</div><div style={{fontSize:13,color:'var(--text-tertiary)'}}>查看打卡记录与每日一语</div></div>
       <span style={{marginLeft:'auto',color:'var(--text-tertiary)'}}>→</span>
     </div>
     <Rm t="不被PUA · 受害者叙事觉察" a/><Rm t="不被PUA · 框架化表达"/><Rm t="不被PUA · 自我估值校准"/>
@@ -197,6 +208,47 @@ function Lu({u,er,oh}){
     <div style={{fontSize:15,color:'var(--text-secondary)',textAlign:'center'}}>你已升至 <strong style={{color:'var(--accent)'}}>LV.{u.level}</strong></div>
     {er&&er.coach_note&&<div style={{width:'100%',background:'var(--surface)',border:'1px solid var(--accent)',borderRadius:10,padding:'20px 24px',fontSize:14,lineHeight:1.8,color:'var(--text-secondary)',fontStyle:'italic'}}>{er.coach_note}</div>}
     <button onClick={oh} style={bG}>回到首页</button></div>
+}
+
+// ── Grid Modal ──
+function Grid({gd,gq,oc}){
+  const weeks=[]
+  const end=new Date();const start=new Date(end);start.setDate(start.getDate()-83)
+  const ds=new Set(gd)
+  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+    const w=Math.floor((d-start)/(86400000*7))
+    if(!weeks[w])weeks[w]=[]
+    weeks[w].push(d.toISOString().slice(0,10))
+  }
+  const days=['','一','','三','','五','']
+  return <div onClick={oc} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.4)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+    <div onClick={e=>e.stopPropagation()} style={{background:'var(--surface)',borderRadius:16,padding:'32px 28px 24px',maxWidth:420,width:'100%',maxHeight:'90vh',overflow:'auto',display:'flex',flexDirection:'column',gap:20}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div style={{fontFamily:'var(--font-serif)',fontSize:20,fontWeight:700}}>打卡日历</div>
+        <span onClick={oc} style={{fontSize:24,cursor:'pointer',color:'var(--text-tertiary)',lineHeight:1}}>×</span>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:4}}>
+        <div style={{display:'flex',gap:3,marginBottom:4}}>{days.map((d,i)=><div key={i} style={{width:26,fontSize:10,color:'var(--text-tertiary)',textAlign:'center'}}>{d}</div>)}</div>
+        {weeks.map((w,wi)=><div key={wi} style={{display:'flex',gap:3}}>
+          {w.map((date,di)=>{
+            const checked=ds.has(date)
+            const today=date===new Date().toISOString().slice(0,10)
+            return <div key={di} title={date} style={{width:26,height:26,borderRadius:4,background:checked?today?'var(--accent)':'var(--success)':'var(--border-light)',opacity:checked?1:.5,transition:'all .2s'}}/>
+          })}
+        </div>)}
+      </div>
+      <div style={{display:'flex',gap:12,alignItems:'center',fontSize:12,color:'var(--text-tertiary)'}}>
+        <span style={{width:10,height:10,borderRadius:2,background:'var(--success)',display:'inline-block'}}/>已打卡
+        <span style={{width:10,height:10,borderRadius:2,background:'var(--accent)',display:'inline-block'}}/>今天
+        <span style={{width:10,height:10,borderRadius:2,background:'var(--border-light)',display:'inline-block'}}/>未打卡
+      </div>
+      {gq&&<div style={{background:'var(--accent-soft)',borderRadius:10,padding:'20px 24px',display:'flex',flexDirection:'column',gap:8}}>
+        <div style={{fontSize:11,color:'var(--accent)',fontWeight:600}}>💬 每日一语</div>
+        <div style={{fontFamily:'var(--font-serif)',fontSize:16,lineHeight:1.7,fontStyle:'italic'}}>"{gq.quote}"</div>
+        <div style={{fontSize:12,color:'var(--text-tertiary)',textAlign:'right'}}>—— {gq.source}</div>
+      </div>}
+      <div style={{textAlign:'center'}}><button onClick={oc} style={bG}>关闭</button></div>
+    </div></div>
 }
 
 // Shared

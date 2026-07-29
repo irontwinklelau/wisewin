@@ -368,6 +368,49 @@ export default {
         }
       }
 
+      // ── 打卡网格数据 ──
+      if (path === '/api/training/checkin-grid') {
+        const { results } = await db.prepare(`SELECT DISTINCT date FROM training_logs WHERE completed = 1 ORDER BY date`).all()
+        return json({ dates: results.map(r => r.date) })
+      }
+
+      // ── 每日语录（缓存不重复生成）──
+      if (path === '/api/training/daily-quote') {
+        const td = today()
+        const cached = await db.prepare('SELECT quote, source FROM daily_quotes WHERE date = ?').bind(td).first()
+        if (cached) return json({ date: td, quote: cached.quote, source: cached.source, cached: true })
+
+        // 当天还没有语录，生成一条
+        let quote = null
+        if (env.DEEPSEEK_API_KEY) {
+          try {
+            const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}` },
+              body: JSON.stringify({
+                model: 'deepseek-chat', max_tokens: 200,
+                messages: [{
+                  role: 'system',
+                  content: `你是一位智者。请给一位正在每天坚持训练自己商业博弈能力的学习者一句励志语录。要求：
+- 有深度，不鸡汤
+- 出处来自真实的历史人物/企业家/哲学家/军事家（如孙子、芒格、拿破仑、宫本武藏等）
+- 语录长度不超过50字
+- 用JSON格式回复：{"quote": "语录内容", "source": "出处（人名+头衔，如'查理·芒格，伯克希尔副董事长'）"}`,
+                }],
+              }),
+            })
+            const data = await resp.json()
+            const text = data.choices[0].message.content.trim()
+            let js = text; if (text.startsWith('```')) js = text.split('\n').slice(1, -1).join('\n')
+            quote = JSON.parse(js)
+            // 存入数据库
+            await db.prepare('INSERT OR IGNORE INTO daily_quotes (date, quote, source) VALUES (?,?,?)').bind(td, quote.quote, quote.source).run()
+          } catch {}
+        }
+        if (!quote) quote = { quote: '每天进步一点点，时间会给你答案。', source: '佚名' }
+        return json({ date: td, quote: quote.quote, source: quote.source, cached: false })
+      }
+
       return json({ error: 'Not found' }, 404)
     } catch (e) {
       return json({ error: e.message }, 500)
