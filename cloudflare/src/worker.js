@@ -215,6 +215,7 @@ export default {
         `).bind(log_id).first()
         if (!log) return json({ error: 'Not found' }, 404)
 
+        let analysis = null
         const lc = JSON.parse(log.content_json || '{}')
         const question = lc.exercise?.question || lc.one_liner || log.lesson_title
 
