@@ -142,8 +142,10 @@ export default {
           await db.prepare('INSERT INTO user_state (id, level, streak_days, total_checkins) VALUES (1,0,0,0)').run()
           user = { level: 0, streak_days: 0, total_checkins: 0 }
         }
-        const lesson = await db.prepare('SELECT * FROM lessons ORDER BY module, lesson_index LIMIT 1 OFFSET ?').bind(user.total_checkins).first()
-        if (!lesson) return json({ status: 'no_content', message: '暂无更多课程', user: { level: user.level, streak_days: user.streak_days, total_checkins: user.total_checkins } })
+        const totalLessons = await db.prepare('SELECT COUNT(*) as count FROM lessons').first()
+        const offset = totalLessons.count > 0 ? user.total_checkins % totalLessons.count : 0
+        const lesson = await db.prepare('SELECT * FROM lessons ORDER BY module, lesson_index LIMIT 1 OFFSET ?').bind(offset).first()
+        if (!lesson) return json({ status: 'no_content', message: '暂无课程，请先初始化种子数据', user: { level: user.level, streak_days: user.streak_days, total_checkins: user.total_checkins } })
         return json({
           status: 'ok',
           lesson: { id: lesson.id, module: lesson.module, lesson_index: lesson.lesson_index, title: lesson.title, content: JSON.parse(lesson.content_json) },
