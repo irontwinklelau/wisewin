@@ -9,8 +9,8 @@ function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...CORS } })
 }
 
-function today() { return new Date().toISOString().slice(0, 10) }
-function yesterday() { return new Date(Date.now() - 86400000).toISOString().slice(0, 10) }
+function today() { const d=new Date();const bj=new Date(d.getTime()+8*3600000);return bj.toISOString().slice(0,10) }
+function yesterday() { const d=new Date(Date.now()-86400000);const bj=new Date(d.getTime()+8*3600000);return bj.toISOString().slice(0,10) }
 
 const LEVEL_LABELS = ['零', '壹', '贰', '叁', '肆']
 
