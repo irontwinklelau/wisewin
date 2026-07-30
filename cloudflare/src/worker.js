@@ -143,6 +143,10 @@ export default {
           await db.prepare('INSERT INTO user_state (id, level, streak_days, total_checkins) VALUES (1,0,0,0)').run()
           user = { level: 0, streak_days: 0, total_checkins: 0 }
         }
+        const td = today()
+        if (user.last_checkin_date === td) {
+          return json({ status: 'already_checked_in', message: '今天已经训练过了，明天再来', user: { level: user.level, streak_days: user.streak_days, total_checkins: user.total_checkins } })
+        }
         const all = await db.prepare('SELECT COUNT(*) as c FROM lessons').first()
         const count = Number(all?.c || 0)
         const offset = count > 0 ? (user.total_checkins || 0) % count : 0
