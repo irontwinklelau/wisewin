@@ -420,6 +420,28 @@ export default {
         return json({ date: td, quote: quote.quote, source: quote.source, cached: false })
       }
 
+      // ── 课程大纲+进度 ──
+      if (path === '/api/training/roadmap') {
+        const lessons = await db.prepare('SELECT module, lesson_index, title FROM lessons ORDER BY module, lesson_index').all()
+        const logs = await db.prepare('SELECT DISTINCT module, lesson_index FROM training_logs WHERE completed = 1').all()
+        const done = new Set(logs.results.map(r => `${r.module}|${r.lesson_index}`))
+        const modules = []
+        let currentModule = null
+        for (const l of lessons.results) {
+          if (l.module !== currentModule) {
+            currentModule = l.module
+            modules.push({ module: l.module, lessons: [], completed: 0, total: 0 })
+          }
+          const m = modules[modules.length - 1]
+          const key = `${l.module}|${l.lesson_index}`
+          const isDone = done.has(key)
+          m.lessons.push({ lesson_index: l.lesson_index, title: l.title, completed: isDone })
+          m.total++
+          if (isDone) m.completed++
+        }
+        return json({ modules })
+      }
+
       return json({ error: 'Not found' }, 404)
     } catch (e) {
       return json({ error: e.message }, 500)

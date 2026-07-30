@@ -20,8 +20,9 @@ function App(){
   const[gv,sgv]=useState(false)
   const[gd,sgd]=useState([])
   const[gq,sgq]=useState(null)
+  const[rm,srm]=useState([])
 
-  useEffect(()=>{fetch(`${API}/training/user`).then(r=>r.json()).then(d=>su(d)).catch(()=>{})},[])
+  useEffect(()=>{fetch(`${API}/training/user`).then(r=>r.json()).then(d=>su(d)).catch(()=>{});fetch(`${API}/training/roadmap`).then(r=>r.json()).then(d=>srm(d.modules||[])).catch(()=>{})},[])
   const go=()=>{sv('dash');sl(null);sa('');se(null);swv(false);srv(null);ser(null);sswp(null);shd(null);fetch(`${API}/training/user`).then(r=>r.json()).then(d=>su(d)).catch(()=>{})}
   const start=async()=>{sld(true);se(null);try{const r=await fetch(`${API}/training/today`);const d=await r.json();if(d.status==='ok'){sl(d.lesson);su(d.user);sv('l1')}else se(d.message||'No content')}catch{se('网络连接失败')};sld(false)}
   const sub=async()=>{if(!a.trim())return;sld(true);try{const r=await fetch(`${API}/training/submit`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lesson_id:l.id,answer:a})});const d=await r.json();if(d.status==='ok'){su(p=>({...p,streak_days:d.streak_days,total_checkins:d.total_checkins,weapon_count:d.weapon_count}));srv(d.review||null);sv('ok')}else if(d.status==='already_checked_in')se('今天已经打卡过了')}catch{se('提交失败')};sld(false)}
@@ -35,7 +36,7 @@ function App(){
   useEffect(()=>{chkLv()},[u.total_checkins])
 
   return(<>
-    {v==='dash'&&<Dash u={u} err={e} ld={ld} os={start} lt={lt} olt={()=>sv('lt')} ow={lw} oh={lh} og={openGrid}/>}
+    {v==='dash'&&<Dash u={u} err={e} ld={ld} os={start} lt={lt} olt={()=>sv('lt')} ow={lw} oh={lh} og={openGrid} rm={rm}/>}
     {gv&&<Grid gd={gd} gq={gq} oc={goGrid}/>}
     {wv&&!swp&&<Wpns wp={wp} oh={go} os={sswp}/>}
     {wv&&swp&&<Wpd w={swp} ob={()=>sswp(null)} oh={go}/>}
@@ -50,7 +51,7 @@ function App(){
   </>)
 }
 
-function Dash({u,err,ld,os,lt,olt,ow,oh,og}){
+function Dash({u,err,ld,os,lt,olt,ow,oh,og,rm}){
   return <div className="animate-fade-in" style={co}>
     <div style={tb}><span style={s20}>内功</span><span style={s13}>{new Date().toLocaleDateString('zh-CN',{weekday:'long',month:'long',day:'numeric'})}</span></div>
     <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:40,padding:'48px 0 32px'}}>
@@ -80,7 +81,10 @@ function Dash({u,err,ld,os,lt,olt,ow,oh,og}){
       <div><div style={{fontSize:15,fontWeight:500}}>打卡日历</div><div style={{fontSize:13,color:'var(--text-tertiary)'}}>查看打卡记录与每日一语</div></div>
       <span style={{marginLeft:'auto',color:'var(--text-tertiary)'}}>→</span>
     </div>
-    <Rm t="不被PUA · 受害者叙事觉察" a/><Rm t="不被PUA · 框架化表达"/><Rm t="不被PUA · 自我估值校准"/>
+    {rm.length>0?rm.map(m=><div key={m.module}>
+      <div style={{fontSize:13,color:'var(--text-tertiary)',fontWeight:600,marginBottom:8,marginTop:12}}>{m.module} · {m.completed}/{m.total}</div>
+      {m.lessons.map((l,i)=><Rm key={i} t={l.title} a={l.completed}/>)}
+    </div>):<><Rm t="不被PUA · 受害者叙事觉察" a/><Rm t="不被PUA · 框架化表达"/><Rm t="不被PUA · 自我估值校准"/></>}
   </div>
 }
 
@@ -270,7 +274,7 @@ function Card({title,children}){return<div style={{background:'var(--surface)',b
 function Cal({l,q,s}){return<div style={{borderLeft:'3px solid var(--accent)',padding:'16px 20px',background:'var(--accent-soft)',borderRadius:'0 6px 6px 0'}}><div style={{fontSize:11,color:'var(--accent)',marginBottom:6,fontWeight:600}}>{l}</div><div style={{fontFamily:'var(--font-serif)',fontSize:17,lineHeight:1.7}}>{q}</div>{s&&<div style={{fontSize:12,color:'var(--text-tertiary)',marginTop:8}}>{s}</div>}</div>}
 function Cb({l,tone,children}){const c=tone==='bad'?'#C4A08A':'var(--success)';return<div style={{border:'1px solid var(--border)',borderLeft:`3px solid ${c}`,borderRadius:10,padding:'20px 24px'}}><div style={{fontSize:11,fontWeight:600,marginBottom:12,color:c}}>{l}</div><div style={{fontSize:15,lineHeight:1.8}}>{children}</div></div>}
 function Div({t}){return<div style={{display:'flex',alignItems:'center',gap:12,color:'var(--text-tertiary)',fontSize:13}}><span style={{flex:1,height:1,background:'var(--border-light)'}}/>{t}<span style={{flex:1,height:1,background:'var(--border-light)'}}/></div>}
-function Rm({t,a}){return<div style={{...mi,opacity:a?1:.35}}><div style={{width:8,height:8,borderRadius:'50%',background:a?'var(--text)':'var(--border)'}}/><div><div style={{fontSize:15,fontWeight:500}}>{t}</div>{a&&<div style={{fontSize:13,color:'var(--text-tertiary)'}}>解锁中</div>}</div></div>}
+function Rm({t,a}){return<div style={{...mi,opacity:a?1:.6}}><div style={{width:8,height:8,borderRadius:'50%',background:a?'var(--success)':'var(--border)'}}/><div><div style={{fontSize:15,fontWeight:500}}>{t}</div>{a&&<div style={{fontSize:12,color:'var(--success)'}}>✓ 已完成</div>}</div></div>}
 function Btn({on,d,children}){return<button onClick={on} disabled={d} style={{display:'inline-flex',alignItems:'center',gap:10,padding:'12px 24px',background:'var(--accent)',color:'#FFF',border:'none',borderRadius:10,fontSize:14,fontWeight:500,cursor:d?'default':'pointer',opacity:d?.5:1}}>{children}<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button>}
 
 export default App
