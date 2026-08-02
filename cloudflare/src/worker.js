@@ -194,7 +194,7 @@ export default {
         } catch {}
 
         await db.prepare('UPDATE user_state SET streak_days=?, last_checkin_date=?, total_checkins=total_checkins+1 WHERE id=1').bind(streak, td).run()
-        await db.prepare('INSERT INTO training_logs (date, module, lesson_index, exercise_answer, completed, analysis_json) VALUES (?,?,?,?,1,?)').bind(td, lesson.module, lesson.lesson_index, answer, JSON.stringify(reviewObj)).run()
+        await db.prepare('INSERT INTO training_logs (date, module, lesson_index, exercise_answer, completed, analysis_json) VALUES (?,?,?,?,1,?)').bind(td, lesson.module, lesson.lesson_index, answer, JSON.stringify(reviewObj || {})).run()
 
         const existing = await db.prepare('SELECT id FROM weapons WHERE module=? AND lesson_index=?').bind(lesson.module, lesson.lesson_index).first()
         if (!existing) {
