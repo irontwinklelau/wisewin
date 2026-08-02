@@ -149,7 +149,7 @@ export default {
         }
 	        		// 找第一个未完成的课，全部完成则回到第一课
 	        let lesson = await db.prepare(
-		          "SELECT * FROM lessons WHERE module NOT LIKE '%跨境%' AND module NOT LIKE '%升段%' AND id NOT IN (SELECT lesson_id FROM training_logs WHERE completed=1 AND module NOT LIKE '%跨境%') ORDER BY module, lesson_index LIMIT 1"
+		          "SELECT * FROM lessons l WHERE l.module NOT LIKE '%跨境%' AND l.module NOT LIKE '%升段%' AND NOT EXISTS (SELECT 1 FROM training_logs t WHERE t.module = l.module AND t.lesson_index = l.lesson_index AND t.completed=1) ORDER BY l.module, l.lesson_index LIMIT 1"
 	        ).first()
 	        if (!lesson) {
 		          lesson = await db.prepare("SELECT * FROM lessons WHERE module NOT LIKE '%跨境%' AND module NOT LIKE '%升段%' ORDER BY module, lesson_index LIMIT 1").first()
@@ -166,7 +166,7 @@ export default {
       // Submit exercise + AI review
       if (path === '/api/training/submit' && request.method === 'POST') {
         const body = await request.json()
-        const { lesson_id, answer } = body
+        const { lesson_id_PLACEHOLDER, answer } = body
         let user = await db.prepare('SELECT * FROM user_state WHERE id = 1').first()
         if (!user) { await db.prepare('INSERT INTO user_state (id, level, streak_days, total_checkins) VALUES (1,0,0,0)').run(); user = { level:0, streak_days:0, total_checkins:0, last_checkin_date:null } }
 
@@ -179,7 +179,7 @@ export default {
           else if (user.last_checkin_date !== td) streak = 1
         } else streak = 1
 
-        const lesson = await db.prepare('SELECT * FROM lessons WHERE id = ?').bind(lesson_id).first()
+        const lesson = await db.prepare('SELECT * FROM lessons WHERE id = ?').bind(lesson_id_PLACEHOLDER).first()
         if (!lesson) return json({ error: 'Lesson not found' }, 404)
 
         const lc = JSON.parse(lesson.content_json)
@@ -471,8 +471,8 @@ export default {
       // ── 跨境课程：提交（不限打卡，可重复练习）──
       if (path === '/api/training/course-submit' && request.method === 'POST') {
         const body = await request.json()
-        const { lesson_id, answer } = body
-        const lesson = await db.prepare('SELECT * FROM lessons WHERE id = ?').bind(lesson_id).first()
+        const { lesson_id_PLACEHOLDER, answer } = body
+        const lesson = await db.prepare('SELECT * FROM lessons WHERE id = ?').bind(lesson_id_PLACEHOLDER).first()
         if (!lesson) return json({ error: 'Lesson not found' }, 404)
 
         const lc = JSON.parse(lesson.content_json)
