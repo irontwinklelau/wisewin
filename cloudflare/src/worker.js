@@ -102,7 +102,7 @@ async function reviewExercise(module, lessonIndex, answer, env) {
         model: 'deepseek-chat',
         max_tokens: 400,
         messages: [
-          { role: 'system', content: `你是一个博弈能力教练。学员刚完成了「${module}」模块第${lessonIndex}课的练习。请用2-3句话点评他的作业：指出一个亮点、一个可以深挖的方向。口吻是教练式的——真诚、有洞察力、不空洞。` },
+          { role: 'system', content: `你是一个博弈能力教练。学员刚完成了「${module}」第${lessonIndex}课的练习。请用JSON格式回复：{"review":"2-3句话点评","example":"针对本题的标准回答示例(50-100字)"}。review指出亮点和深挖方向，教练口吻。example给一个可直接参照的回答标杆，体现这节课的核心知识点。` },
           { role: 'user', content: answer },
         ],
       }),
@@ -182,11 +182,16 @@ export default {
         const lc = JSON.parse(lesson.content_json)
         const weaponName = `${lesson.module} · ${lesson.title}`
 
-        // AI 点评
-        const review = await reviewExercise(lesson.module, lesson.lesson_index, answer, env)
+        // AI 点评（含标准答案）
+        const reviewRaw = await reviewExercise(lesson.module, lesson.lesson_index, answer, env)
+        let reviewObj = { review: reviewRaw || '' }
+        try {
+          const parsed = JSON.parse(reviewRaw || '{}')
+          reviewObj = parsed
+        } catch {}
 
         await db.prepare('UPDATE user_state SET streak_days=?, last_checkin_date=?, total_checkins=total_checkins+1 WHERE id=1').bind(streak, td).run()
-        await db.prepare('INSERT INTO training_logs (date, module, lesson_index, exercise_answer, completed) VALUES (?,?,?,?,1)').bind(td, lesson.module, lesson.lesson_index, answer).run()
+        await db.prepare('INSERT INTO training_logs (date, module, lesson_index, exercise_answer, completed, analysis_json) VALUES (?,?,?,?,1,?)').bind(td, lesson.module, lesson.lesson_index, answer, JSON.stringify(reviewObj)).run()
 
         const existing = await db.prepare('SELECT id FROM weapons WHERE module=? AND lesson_index=?').bind(lesson.module, lesson.lesson_index).first()
         if (!existing) {
@@ -194,7 +199,7 @@ export default {
         }
 
         const { count: wc } = await db.prepare('SELECT COUNT(*) as count FROM weapons').first()
-        return json({ status: 'ok', streak_days: streak, total_checkins: user.total_checkins + 1, weapon_count: wc, weapon_name: weaponName, review })
+        return json({ status: 'ok', streak_days: streak, total_checkins: user.total_checkins + 1, weapon_count: wc, weapon_name: weaponName, review: reviewObj })
       }
 
       // Training history
@@ -481,7 +486,7 @@ export default {
                 model: 'deepseek-chat', max_tokens: 500,
                 messages: [{
                   role: 'system',
-                  content: `你是一个跨境能源硬件选品教练。学员刚完成了「${lesson.module}」第${lesson.lesson_index}课「${lesson.title}」的练习。按JSON格式评估(10分制)：{"passed":true/false,"score":1-10,"strengths":"做得好的点","weaknesses":"可改进的点","coach_note":"教练一句话点评"}。9-10分=理解透能举一反三，7-8分=基本掌握，5-6分=浮于表面，3-4分=有偏差，1-2分=敷衍。`,
+                  content: `你是一个跨境能源硬件选品教练。学员刚完成了「${lesson.module}」第${lesson.lesson_index}课「${lesson.title}」的练习。按JSON格式评估(10分制)：{"passed":true/false,"score":1-10,"strengths":"做得好的点","weaknesses":"可改进的点","coach_note":"教练一句话点评","example":"针对本题的标准回答示例(50-100字)"}。example要体现这节课教的核心知识点，给学员一个可直接参照的回答标杆。9-10分=理解透能举一反三，7-8分=基本掌握，5-6分=浮于表面，3-4分=有偏差，1-2分=敷衍。`,
                 }, {
                   role: 'user', content: `题目：${lc.exercise?.question || lc.one_liner}\n\n学员回答：${answer}`,
                 }],
