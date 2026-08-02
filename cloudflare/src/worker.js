@@ -1,4 +1,4 @@
-// ── 内功 API Worker v1.2 ──
+﻿// ── 内功 API Worker v1.2 ──
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -147,10 +147,13 @@ export default {
         if (user.last_checkin_date === td) {
           return json({ status: 'already_checked_in', message: '今天已经训练过了，明天再来', user: { level: user.level, streak_days: user.streak_days, total_checkins: user.total_checkins } })
         }
-        const all = await db.prepare("SELECT COUNT(*) as c FROM lessons WHERE module NOT LIKE '%跨境%' AND module NOT LIKE '%升段%'").first()
-        const count = Number(all?.c || 0)
-        const offset = count > 0 ? (user.total_checkins || 0) % count : 0
-        const lesson = await db.prepare("SELECT * FROM lessons WHERE module NOT LIKE '%跨境%' AND module NOT LIKE '%升段%' ORDER BY module, lesson_index LIMIT 1 OFFSET ?").bind(offset).first()
+	        		// 找第一个未完成的课，全部完成则回到第一课
+	        let lesson = await db.prepare(
+		          "SELECT * FROM lessons WHERE module NOT LIKE '%跨境%' AND module NOT LIKE '%升段%' AND id NOT IN (SELECT lesson_id FROM training_logs WHERE completed=1 AND module NOT LIKE '%跨境%') ORDER BY module, lesson_index LIMIT 1"
+	        ).first()
+	        if (!lesson) {
+		          lesson = await db.prepare("SELECT * FROM lessons WHERE module NOT LIKE '%跨境%' AND module NOT LIKE '%升段%' ORDER BY module, lesson_index LIMIT 1").first()
+	        }
         if (!lesson) return json({ status: 'no_content', message: '暂无课程，请先初始化种子数据', user: { level: user.level, streak_days: user.streak_days, total_checkins: user.total_checkins } })
         return json({
           status: 'ok',
