@@ -147,10 +147,10 @@ export default {
         if (user.last_checkin_date === td) {
           return json({ status: 'already_checked_in', message: '今天已经训练过了，明天再来', user: { level: user.level, streak_days: user.streak_days, total_checkins: user.total_checkins } })
         }
-        const all = await db.prepare('SELECT COUNT(*) as c FROM lessons').first()
+        const all = await db.prepare('SELECT COUNT(*) as c FROM lessons WHERE module NOT LIKE '%跨境%' AND module NOT LIKE '%升段%'').first()
         const count = Number(all?.c || 0)
         const offset = count > 0 ? (user.total_checkins || 0) % count : 0
-        const lesson = await db.prepare('SELECT * FROM lessons ORDER BY module, lesson_index LIMIT 1 OFFSET ?').bind(offset).first()
+        const lesson = await db.prepare('SELECT * FROM lessons WHERE module NOT LIKE '%跨境%' AND module NOT LIKE '%升段%' ORDER BY module, lesson_index LIMIT 1 OFFSET ?').bind(offset).first()
         if (!lesson) return json({ status: 'no_content', message: '暂无课程，请先初始化种子数据', user: { level: user.level, streak_days: user.streak_days, total_checkins: user.total_checkins } })
         return json({
           status: 'ok',
@@ -323,8 +323,8 @@ export default {
         const currentModule = modules[user.level] || null
         if (!currentModule) return json({ can_test: false, reason: '已达最高段位' })
 
-        const { count: completed } = await db.prepare('SELECT COUNT(*) as count FROM training_logs WHERE module=? AND completed=1').bind(currentModule).first()
-        const { count: total } = await db.prepare('SELECT COUNT(*) as count FROM lessons WHERE module=?').bind(currentModule).first()
+        const { count: completed } = await db.prepare("SELECT COUNT(*) as count FROM training_logs WHERE module=? AND completed=1 AND module NOT LIKE '%跨境%'").bind(currentModule).first()
+        const { count: total } = await db.prepare("SELECT COUNT(*) as count FROM lessons WHERE module=? AND module NOT LIKE '%跨境%'").bind(currentModule).first()
 
         if (total === 0) return json({ can_test: false, reason: '当前模块暂无课程' })
         if (completed < total) return json({ can_test: false, reason: `还需完成 ${total - completed} 节课` })
@@ -422,8 +422,10 @@ export default {
 
       // ── 课程大纲+进度 ──
       if (path === '/api/training/roadmap') {
-        const lessons = await db.prepare('SELECT module, lesson_index, title FROM lessons ORDER BY module, lesson_index').all()
-        const logs = await db.prepare('SELECT DISTINCT module, lesson_index FROM training_logs WHERE completed = 1').all()
+        const modFilter = url.searchParams.get('module') || ''
+        const like = modFilter ? '%'+modFilter+'%' : '%'
+        const lessons = await db.prepare('SELECT module, lesson_index, title FROM lessons WHERE module LIKE ? ORDER BY module, lesson_index').bind(like).all()
+        const logs = await db.prepare('SELECT DISTINCT module, lesson_index FROM training_logs WHERE module LIKE ? AND completed = 1').bind(like).all()
         const done = new Set(logs.results.map(r => `${r.module}|${r.lesson_index}`))
         const modules = []
         let currentModule = null
@@ -468,39 +470,40 @@ export default {
         const lc = JSON.parse(lesson.content_json)
         const td = today()
 
-        // AI 点评（使用课程专属 prompt）
-        let review = null
+        // AI 评分+点评
+        let scoring = null
         if (env.DEEPSEEK_API_KEY) {
           try {
             const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}` },
               body: JSON.stringify({
-                model: 'deepseek-chat', max_tokens: 400,
+                model: 'deepseek-chat', max_tokens: 500,
                 messages: [{
                   role: 'system',
-                  content: `你是一个跨境能源硬件选品教练。学员正在学习「${lesson.module}」模块，刚完成了第${lesson.lesson_index}课「${lesson.title}」的练习。请用2-3句话点评：指出一个做得好的点、一个可以做得更好的方向。口吻是教练式的——专业、具体、有建设性，不空洞。如果回答字数太少（<20字）或者明显没认真做，直接指出。`,
+                  content: `你是一个跨境能源硬件选品教练。学员刚完成了「${lesson.module}」第${lesson.lesson_index}课「${lesson.title}」的练习。按JSON格式评估(10分制)：{"passed":true/false,"score":1-10,"strengths":"做得好的点","weaknesses":"可改进的点","coach_note":"教练一句话点评"}。9-10分=理解透能举一反三，7-8分=基本掌握，5-6分=浮于表面，3-4分=有偏差，1-2分=敷衍。`,
                 }, {
                   role: 'user', content: `题目：${lc.exercise?.question || lc.one_liner}\n\n学员回答：${answer}`,
                 }],
               }),
             })
             const data = await resp.json()
-            review = data.choices[0].message.content.trim()
-          } catch { review = null }
+            const text = data.choices[0].message.content.trim()
+            let js = text; if (text.startsWith('```')) js = text.split('\n').slice(1, -1).join('\n')
+            scoring = JSON.parse(js)
+          } catch { scoring = null }
         }
+        if (!scoring) scoring = { passed: true, score: 5, strengths: '', weaknesses: '', coach_note: '' }
 
-        // 记录训练（不限打卡）
         await db.prepare('INSERT INTO training_logs (date, module, lesson_index, exercise_answer, completed) VALUES (?,?,?,?,1)').bind(td, lesson.module, lesson.lesson_index, answer).run()
 
-        // 武器库
         const weaponName = `${lesson.module} · ${lesson.title}`
         const existing = await db.prepare('SELECT id FROM weapons WHERE module=? AND lesson_index=?').bind(lesson.module, lesson.lesson_index).first()
         if (!existing) {
           await db.prepare('INSERT OR IGNORE INTO weapons (name, definition, module, lesson_index, acquired_at) VALUES (?,?,?,?,?)').bind(weaponName, lc.one_liner || '', lesson.module, lesson.lesson_index, new Date().toISOString()).run()
         }
 
-        return json({ status: 'ok', module: lesson.module, lesson_title: lesson.title, review })
+        return json({ status: 'ok', module: lesson.module, lesson_title: lesson.title, scoring })
       }
 
       return json({ error: 'Not found' }, 404)
