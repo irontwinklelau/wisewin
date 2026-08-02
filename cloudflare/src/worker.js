@@ -442,6 +442,67 @@ export default {
         return json({ modules })
       }
 
+      // ── 跨境课程：列表（不限打卡）──
+      if (path === '/api/training/courses') {
+        const module = url.searchParams.get('module') || '跨境·看价格'
+        const { results } = await db.prepare('SELECT * FROM lessons WHERE module = ? ORDER BY lesson_index').bind(module).all()
+        if (!results.length) return json({ module, lessons: [], message: '暂无课程' })
+        const logs = await db.prepare('SELECT DISTINCT lesson_index FROM training_logs WHERE module = ? AND completed = 1').bind(module).all()
+        const done = new Set(logs.results.map(r => r.lesson_index))
+        return json({
+          module,
+          lessons: results.map(l => ({
+            id: l.id, lesson_index: l.lesson_index, title: l.title,
+            content: JSON.parse(l.content_json), completed: done.has(l.lesson_index)
+          }))
+        })
+      }
+
+      // ── 跨境课程：提交（不限打卡，可重复练习）──
+      if (path === '/api/training/course-submit' && request.method === 'POST') {
+        const body = await request.json()
+        const { lesson_id, answer } = body
+        const lesson = await db.prepare('SELECT * FROM lessons WHERE id = ?').bind(lesson_id).first()
+        if (!lesson) return json({ error: 'Lesson not found' }, 404)
+
+        const lc = JSON.parse(lesson.content_json)
+        const td = today()
+
+        // AI 点评（使用课程专属 prompt）
+        let review = null
+        if (env.DEEPSEEK_API_KEY) {
+          try {
+            const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}` },
+              body: JSON.stringify({
+                model: 'deepseek-chat', max_tokens: 400,
+                messages: [{
+                  role: 'system',
+                  content: `你是一个跨境能源硬件选品教练。学员正在学习「${lesson.module}」模块，刚完成了第${lesson.lesson_index}课「${lesson.title}」的练习。请用2-3句话点评：指出一个做得好的点、一个可以做得更好的方向。口吻是教练式的——专业、具体、有建设性，不空洞。如果回答字数太少（<20字）或者明显没认真做，直接指出。`,
+                }, {
+                  role: 'user', content: `题目：${lc.exercise?.question || lc.one_liner}\n\n学员回答：${answer}`,
+                }],
+              }),
+            })
+            const data = await resp.json()
+            review = data.choices[0].message.content.trim()
+          } catch { review = null }
+        }
+
+        // 记录训练（不限打卡）
+        await db.prepare('INSERT INTO training_logs (date, module, lesson_index, exercise_answer, completed) VALUES (?,?,?,?,1)').bind(td, lesson.module, lesson.lesson_index, answer).run()
+
+        // 武器库
+        const weaponName = `${lesson.module} · ${lesson.title}`
+        const existing = await db.prepare('SELECT id FROM weapons WHERE module=? AND lesson_index=?').bind(lesson.module, lesson.lesson_index).first()
+        if (!existing) {
+          await db.prepare('INSERT OR IGNORE INTO weapons (name, definition, module, lesson_index, acquired_at) VALUES (?,?,?,?,?)').bind(weaponName, lc.one_liner || '', lesson.module, lesson.lesson_index, new Date().toISOString()).run()
+        }
+
+        return json({ status: 'ok', module: lesson.module, lesson_title: lesson.title, review })
+      }
+
       return json({ error: 'Not found' }, 404)
     } catch (e) {
       return json({ error: e.message }, 500)

@@ -21,9 +21,10 @@ function App(){
   const[gd,sgd]=useState([])
   const[gq,sgq]=useState(null)
   const[rm,srm]=useState([])
+  const[cv,scv]=useState(null);const[cm,scm]=useState(null);const[cl,scl]=useState(null)
 
   useEffect(()=>{fetch(`${API}/training/user`).then(r=>r.json()).then(d=>su(d)).catch(()=>{});fetch(`${API}/training/roadmap`).then(r=>r.json()).then(d=>srm(d.modules||[])).catch(()=>{})},[])
-  const go=()=>{sv('dash');sl(null);sa('');se(null);swv(false);srv(null);ser(null);sswp(null);shd(null);fetch(`${API}/training/user`).then(r=>r.json()).then(d=>su(d)).catch(()=>{})}
+  const go=()=>{sv('dash');sl(null);sa('');se(null);swv(false);srv(null);ser(null);sswp(null);shd(null);scv(null);scl(null);scm(null);fetch(`${API}/training/user`).then(r=>r.json()).then(d=>su(d)).catch(()=>{})}
   const start=async()=>{sld(true);se(null);try{const r=await fetch(`${API}/training/today`);const d=await r.json();if(d.status==='ok'){sl(d.lesson);su(d.user);sv('l1')}else se(d.message||'No content')}catch{se('网络连接失败')};sld(false)}
   const sub=async()=>{if(!a.trim())return;sld(true);try{const r=await fetch(`${API}/training/submit`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lesson_id:l.id,answer:a})});const d=await r.json();if(d.status==='ok'){su(p=>({...p,streak_days:d.streak_days,total_checkins:d.total_checkins,weapon_count:d.weapon_count}));srv(d.review||null);sv('ok')}else if(d.status==='already_checked_in')se('今天已经打卡过了')}catch{se('提交失败')};sld(false)}
   const chkLv=async()=>{try{const r=await fetch(`${API}/training/level-up-status`);const d=await r.json();if(d.can_test)slt(d)}catch{}}
@@ -33,10 +34,13 @@ function App(){
   const goGrid=()=>{sgd([]);sgq(null);sgv(false)}
   const lc=async(id)=>{sld(true);shd(null);sv('hd');try{const r=await fetch(`${API}/training/history/compare`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({log_id:id})});const d=await r.json();shd(d)}catch{se('分析失败')};sld(false)}
   const doLt=async()=>{if(a.length<10){se('写得太少了');return};sld(true);try{const r=await fetch(`${API}/training/level-up-test`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({answer:a})});const d=await r.json();if(d.passed){su(p=>({...p,level:d.new_level}));ser(d);sv('lup');slt(null)}else{ser(d);se(null)}}catch{se('提交失败')};sld(false)}
+  const lcrs=async()=>{sld(true);try{const r=await fetch(`${API}/training/courses?module=跨境·看价格`);const d=await r.json();scm(d);scv('list')}catch{se('加载课程失败')};sld(false)}
+  const stcrs=(l)=>{scl(l);sa('');se(null);srv(null);scv('cl1')}
+  const subcrs=async()=>{if(!a.trim())return;sld(true);try{const r=await fetch(`${API}/training/course-submit`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lesson_id:cl.id,answer:a})});const d=await r.json();if(d.status==='ok'){srv(d.review||null);scv('cok')}}catch{se('提交失败')};sld(false)}
   useEffect(()=>{chkLv()},[u.total_checkins])
 
   return(<>
-    {v==='dash'&&<Dash u={u} err={e} ld={ld} os={start} lt={lt} olt={()=>sv('lt')} ow={lw} oh={lh} og={openGrid} rm={rm}/>}
+    {v==='dash'&&<Dash u={u} err={e} ld={ld} os={start} lt={lt} olt={()=>sv('lt')} ow={lw} oh={lh} og={openGrid} rm={rm} oc={lcrs}/>}
     {gv&&<Grid gd={gd} gq={gq} oc={goGrid}/>}
     {wv&&!swp&&<Wpns wp={wp} oh={go} os={sswp}/>}
     {wv&&swp&&<Wpd w={swp} ob={()=>sswp(null)} oh={go}/>}
@@ -48,10 +52,15 @@ function App(){
     {v==='l2'&&l&&<L2 l={l} on={()=>sv('l3')} oh={go}/>}
     {v==='l3'&&l&&<L3 l={l} a={a} sa={sa} os={sub} oh={go}/>}
     {v==='ok'&&<Ok u={u} l={l} lt={lt} rv={rv} oh={go} olt={()=>sv('lt')}/>}
+    {cv==='list'&&cm&&<CList m={cm} os={stcrs} oh={go}/>}
+    {cv==='cl1'&&cl&&<CL1 l={cl} on={()=>scv('cl2')} oh={()=>scv('list')}/>}
+    {cv==='cl2'&&cl&&<CL2 l={cl} on={()=>scv('cl3')} oh={()=>scv('list')}/>}
+    {cv==='cl3'&&cl&&<CL3 l={cl} a={a} sa={sa} os={subcrs} oh={()=>scv('list')}/>}
+    {cv==='cok'&&cl&&<COk l={cl} rv={rv} oh={()=>{scv('list');scl(null)}} ol={()=>lcrs()}/>}
   </>)
 }
 
-function Dash({u,err,ld,os,lt,olt,ow,oh,og,rm}){
+function Dash({u,err,ld,os,lt,olt,ow,oh,og,rm,oc}){
   return <div className="animate-fade-in" style={co}>
     <div style={tb}><span style={s20}>内功</span><span style={s13}>{new Date().toLocaleDateString('zh-CN',{weekday:'long',month:'long',day:'numeric'})}</span></div>
     <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:40,padding:'48px 0 32px'}}>
@@ -67,8 +76,9 @@ function Dash({u,err,ld,os,lt,olt,ow,oh,og,rm}){
         <div onClick={ow} style={{textAlign:'center',cursor:'pointer'}}><div style={s32}>{u.weapon_count}</div><div style={s13}>武器库 →</div></div>
       </div>
       {err&&<div style={eb}>{err}</div>}
-      {lt?<button onClick={olt} style={b1}>升段测验<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
-      :<button onClick={os} disabled={ld} style={{...b1,opacity:ld?.7:1}}>{ld?'加载中...':'今日训练'}<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button>}
+      <div style={{display:'flex',gap:12}}><button onClick={os} disabled={ld} style={{...b1,opacity:ld?.7:1,flex:1}}>{ld?'加载中...':'今日训练'}<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
+      <button onClick={oc} disabled={ld} style={{...b1,background:'var(--surface)',color:'var(--accent)',border:'2px solid var(--accent)',flex:1}}>🌏 跨境课程<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button></div>
+      {lt?<button onClick={olt} style={b1}>升段测验<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button>:null}
     </div>
     <Div t="训练路线图"/>
     <div onClick={oh} style={mi}>
@@ -276,5 +286,62 @@ function Cb({l,tone,children}){const c=tone==='bad'?'#C4A08A':'var(--success)';r
 function Div({t}){return<div style={{display:'flex',alignItems:'center',gap:12,color:'var(--text-tertiary)',fontSize:13}}><span style={{flex:1,height:1,background:'var(--border-light)'}}/>{t}<span style={{flex:1,height:1,background:'var(--border-light)'}}/></div>}
 function Rm({t,a}){return<div style={{...mi,opacity:a?1:.6}}><div style={{width:8,height:8,borderRadius:'50%',background:a?'var(--success)':'var(--border)'}}/><div><div style={{fontSize:15,fontWeight:500}}>{t}</div>{a&&<div style={{fontSize:12,color:'var(--success)'}}>✓ 已完成</div>}</div></div>}
 function Btn({on,d,children}){return<button onClick={on} disabled={d} style={{display:'inline-flex',alignItems:'center',gap:10,padding:'12px 24px',background:'var(--accent)',color:'#FFF',border:'none',borderRadius:10,fontSize:14,fontWeight:500,cursor:d?'default':'pointer',opacity:d?.5:1}}>{children}<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></button>}
+
+// ── 跨境课程组件 ──
+function CList({m,os,oh}){
+  const allDone=m.lessons.every(l=>l.completed)
+  const doneCount=m.lessons.filter(l=>l.completed).length
+  return <div className="animate-fade-in" style={co}>
+    <Top oh={oh} sub="跨境课程"/>
+    <div style={s26}>{m.module}</div>
+    <div style={{fontSize:14,color:'var(--text-tertiary)'}}>{doneCount}/{m.lessons.length} 课已完成{allDone?' 🎉':''}</div>
+    {m.lessons.length===0&&<Card><p style={{textAlign:'center',color:'var(--text-tertiary)'}}>课程正在准备中。</p></Card>}
+    {m.lessons.map((l,i)=><div key={i} onClick={()=>os(l)} style={{...mi,cursor:'pointer'}}>
+      <div style={{width:36,height:36,borderRadius:'50%',background:l.completed?'var(--success)':'var(--border-light)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{l.completed?'✓':l.lesson_index}</div>
+      <div style={{flex:1}}><div style={{fontSize:15,fontWeight:500}}>{l.title}</div><div style={{fontSize:12,color:'var(--text-tertiary)',marginTop:2}}>{l.content?.one_liner||''}</div></div>
+      {l.completed&&<span style={{fontSize:12,color:'var(--success)'}}>已完成</span>}
+    </div>)}
+    <button onClick={oh} style={bG}>← 回到首页</button></div>
+}
+
+function CL1({l,on,oh}){const c=l.content;return<div className="animate-fade-in" style={co}>
+  <Top oh={oh} sub={l.module+' · 第'+l.lesson_index+'课'}/>
+  <Pb s={1} t={3}/>
+  <div style={s26}>{l.title}</div>
+  <div style={{fontSize:15,color:'var(--text-secondary)'}}>{c.one_liner}</div>
+  <Card title={'📌 '+c.concept.point1}><p>{c.concept.point1_detail}</p></Card>
+  <Card title={'📌 '+c.concept.point2}><p>{c.concept.point2_detail}</p></Card>
+  <Card title={'📌 '+c.concept.point3}><p>{c.concept.point3_detail}</p></Card>
+  <div style={{background:'var(--accent-soft)',borderRadius:10,padding:'20px 24px'}}><div style={{fontSize:11,color:'var(--accent)',marginBottom:4,fontWeight:600}}>💡 核心洞见</div><div style={{fontSize:14,lineHeight:1.8}}>{c.concept.key_insight}</div></div>
+  <div style={{alignSelf:'flex-end'}}><Btn on={on}>继续 · 案例分析</Btn></div></div>
+}
+
+function CL2({l,on,oh}){const c=l.content;return<div className="animate-fade-in" style={co}>
+  <Top oh={oh} sub={l.module+' · 第'+l.lesson_index+'课'}/>
+  <Pb s={2} t={3}/>
+  <div style={s26}>案例分析</div>
+  <Cal l={c.case.source} q={c.case.scenario} s=""/>
+  <Card title="📊 分析">{c.case.analysis.split('\n').map((p,i)=><p key={i} style={{marginBottom:i?0:12}}>{p}</p>)}</Card>
+  <div style={{background:'var(--accent-soft)',border:'2px solid var(--accent)',borderRadius:10,padding:'24px 28px'}}><div style={{fontSize:11,color:'var(--accent)',marginBottom:8,fontWeight:600}}>🧠 关键洞察</div><div style={{fontSize:15,lineHeight:1.8}}>{c.case.deep_insight}</div></div>
+  <div style={{alignSelf:'flex-end'}}><Btn on={on}>继续 · 开始练习</Btn></div></div>
+}
+
+function CL3({l,a,sa,os,oh}){const c=l.content;return<div className="animate-fade-in" style={co}>
+  <Top oh={oh} sub={l.module+' · 第'+l.lesson_index+'课'}/>
+  <Pb s={3} t={3}/>
+  <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:'24px 28px'}}><div style={{fontSize:11,color:'var(--text-tertiary)',marginBottom:8}}>今日练习</div><div style={{fontFamily:'var(--font-serif)',fontSize:20,lineHeight:1.6,fontWeight:600}}>{c.exercise.question}</div></div>
+  <div style={{fontSize:12,color:'var(--text-tertiary)',padding:'4px 16px',background:'var(--accent-soft)',borderRadius:6,display:'inline-block',alignSelf:'flex-start'}}>💡 {c.exercise.hint}</div>
+  <div style={{position:'relative'}}><textarea value={a} onChange={e=>sa(e.target.value)} placeholder={c.exercise.placeholder} style={ta}/><span style={{position:'absolute',bottom:12,right:16,fontSize:12,color:'var(--text-tertiary)'}}>{a.length} 字</span></div>
+  <div style={{alignSelf:'flex-end'}}><Btn on={os} d={!a.trim()}>提交 · 获取反馈</Btn></div></div>
+}
+
+function COk({l,rv,oh,ol}){
+  return <div className="animate-fade-in" style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'48px 0 32px',gap:28}}>
+    <div className="animate-badge-in" style={{width:80,height:80,borderRadius:'50%',background:'linear-gradient(135deg, var(--success), #60B080)',display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{color:'#FFF',fontSize:32}}>✓</span></div>
+    <div style={{fontFamily:'var(--font-serif)',fontSize:24,fontWeight:700,textAlign:'center'}}>练习完成</div>
+    <div style={{fontSize:14,color:'var(--text-secondary)',textAlign:'center'}}>{l.module} · {l.title}</div>
+    {rv&&<div style={{width:'100%',background:'var(--surface)',border:'1px solid var(--accent)',borderRadius:10,padding:'20px 24px',textAlign:'left'}}><div style={{fontSize:11,color:'var(--accent)',marginBottom:8,fontWeight:600}}>🧠 教练点评</div><div style={{fontSize:14,lineHeight:1.8,color:'var(--text-secondary)'}}>{rv}</div></div>}
+    <div style={{display:'flex',gap:12}}><button onClick={ol} style={bG}>← 返回课程列表</button><button onClick={oh} style={bG}>← 回到首页</button></div></div>
+}
 
 export default App
