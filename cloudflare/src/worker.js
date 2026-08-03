@@ -80,7 +80,7 @@ async function evaluateAnswer(level, answer, env) {
       }),
     })
     const data = await resp.json()
-    const text = data.choices[0].message.content.trim()
+    const text = data.choices[0].message.content.trim(); let t2 = data.choices[0].message.content.trim(); if (t2.startsWith('`')) t2 = t2.split('\n').slice(1, -1).join('\n'); return t2
     // 解析 JSON（可能包裹在 markdown 代码块里）
     let jsonStr = text
     if (text.startsWith('```')) jsonStr = text.split('\n').slice(1, -1).join('\n')
@@ -108,7 +108,7 @@ async function reviewExercise(module, lessonIndex, answer, env) {
       }),
     })
     const data = await resp.json()
-    return data.choices[0].message.content.trim()
+    let t2 = data.choices[0].message.content.trim(); if (t2.startsWith('`')) t2 = t2.split('\n').slice(1, -1).join('\n'); return t2
   } catch { return null }
 }
 
@@ -291,7 +291,7 @@ export default {
               }),
             })
             const data = await resp.json()
-            const text = data.choices[0].message.content.trim()
+            const text = data.choices[0].message.content.trim(); let t2 = data.choices[0].message.content.trim(); if (t2.startsWith('`')) t2 = t2.split('\n').slice(1, -1).join('\n'); return t2
             let jsonStr = text
             if (text.startsWith('```')) jsonStr = text.split('\n').slice(1, -1).join('\n')
             analysis = JSON.parse(jsonStr)
@@ -417,7 +417,7 @@ export default {
               }),
             })
             const data = await resp.json()
-            const text = data.choices[0].message.content.trim()
+            const text = data.choices[0].message.content.trim(); let t2 = data.choices[0].message.content.trim(); if (t2.startsWith('`')) t2 = t2.split('\n').slice(1, -1).join('\n'); return t2
             let js = text; if (text.startsWith('```')) js = text.split('\n').slice(1, -1).join('\n')
             quote = JSON.parse(js)
             // 存入数据库
@@ -496,7 +496,7 @@ export default {
               }),
             })
             const data = await resp.json()
-            const text = data.choices[0].message.content.trim()
+            const text = data.choices[0].message.content.trim(); let t2 = data.choices[0].message.content.trim(); if (t2.startsWith('`')) t2 = t2.split('\n').slice(1, -1).join('\n'); return t2
             let js = text; if (text.startsWith('```')) js = text.split('\n').slice(1, -1).join('\n')
             scoring = JSON.parse(js)
           } catch { scoring = null }
