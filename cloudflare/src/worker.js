@@ -187,11 +187,16 @@ export default {
 
         // AI 点评（含标准答案）
         const reviewRaw = await reviewExercise(lesson.module, lesson.lesson_index, answer, env)
-        let reviewObj = { review: reviewRaw || '' }
-        try {
-          const parsed = JSON.parse(reviewRaw || '{}')
-          reviewObj = parsed
-        } catch {}
+        let reviewObj = { review: reviewRaw || '', example: '' }
+        if (reviewRaw) {
+          try {
+            let text = reviewRaw
+            if (text.startsWith('```')) text = text.split('\n').slice(1, -1).join('\n')
+            const parsed = JSON.parse(text)
+            if (parsed.review) reviewObj.review = parsed.review
+            if (parsed.example) reviewObj.example = parsed.example
+          } catch {}
+        }
 
         await db.prepare('UPDATE user_state SET streak_days=?, last_checkin_date=?, total_checkins=total_checkins+1 WHERE id=1').bind(streak, td).run()
         await db.prepare('INSERT INTO training_logs (date, module, lesson_index, exercise_answer, completed, analysis_json) VALUES (?,?,?,?,1,?)').bind(td, lesson.module, lesson.lesson_index, answer, JSON.stringify(reviewObj || {})).run()
