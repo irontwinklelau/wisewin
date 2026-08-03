@@ -92,24 +92,23 @@ async function evaluateAnswer(level, answer, env) {
 
 // ── 日常练习 AI 点评 ──
 async function reviewExercise(module, lessonIndex, answer, env) {
-  if (!env.DEEPSEEK_API_KEY) return null
-
+  if (!env.DEEPSEEK_API_KEY) return 'ERR:no_key'
   try {
     const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}` },
       body: JSON.stringify({
-        model: 'deepseek-chat',
-        max_tokens: 400,
+        model: 'deepseek-chat', max_tokens: 400,
         messages: [
-          { role: 'system', content: `你是一个博弈能力教练。学员刚完成了「${module}」第${lessonIndex}课的练习。请用JSON格式回复：{"review":"2-3句话点评","example":"针对本题的标准回答示例(50-100字)"}。review指出亮点和深挖方向，教练口吻。example给一个可直接参照的回答标杆，体现这节课的核心知识点。` },
+          { role: 'system', content: `你是教练。学员完成「${module}」第${lessonIndex}课。回复纯JSON（不要markdown包裹）：{"review":"点评","example":"标准答案50-100字"}` },
           { role: 'user', content: answer },
         ],
       }),
     })
     const data = await resp.json()
-    let t2 = data.choices[0].message.content.trim(); if (t2.startsWith('`')) t2 = t2.split('\n').slice(1, -1).join('\n'); return t2
-  } catch { return null }
+    if (!data.choices) return 'ERR:no_choices:' + JSON.stringify(data).slice(0,100)
+    return data.choices[0].message.content.trim()
+  } catch(e) { return 'ERR:' + e.message }
 }
 
 export default {
@@ -122,7 +121,7 @@ export default {
 
     try {
       // Health
-      if (path === '/api/health') return json({ status: 'ok', version: '1.2.0' })
+      if (path === '/api/health') return json({ status: 'ok', version: '1.3.0', has_key: !!env.DEEPSEEK_API_KEY, key_len: (env.DEEPSEEK_API_KEY||'').length })
 
       // User status
       if (path === '/api/training/user') {
@@ -186,16 +185,16 @@ export default {
         const weaponName = `${lesson.module} · ${lesson.title}`
 
         // AI 点评（含标准答案）
+        let reviewErr = ''
         const reviewRaw = await reviewExercise(lesson.module, lesson.lesson_index, answer, env)
-        let reviewObj = { review: reviewRaw || '', example: '' }
+        let reviewObj = { review: '', example: '', raw: reviewRaw || 'AI未返回' }
         if (reviewRaw) {
           try {
             let text = reviewRaw
             if (text.startsWith('```')) text = text.split('\n').slice(1, -1).join('\n')
             const parsed = JSON.parse(text)
-            if (parsed.review) reviewObj.review = parsed.review
-            if (parsed.example) reviewObj.example = parsed.example
-          } catch {}
+            reviewObj = { review: parsed.review || text, example: parsed.example || '', raw: text }
+          } catch { reviewObj = { review: reviewRaw, example: '', raw: reviewRaw } }
         }
 
         await db.prepare('UPDATE user_state SET streak_days=?, last_checkin_date=?, total_checkins=total_checkins+1 WHERE id=1').bind(streak, td).run()
